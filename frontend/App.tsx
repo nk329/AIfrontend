@@ -1,131 +1,135 @@
-/**
- * Sample React Native App
- * https://github.com/facebook/react-native
- *
- * @format
- */
+import React, { useState, useEffect } from 'react';
+import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import Voice, {
+  SpeechRecognizedEvent,
+  SpeechResultsEvent,
+  SpeechErrorEvent,
+} from '@react-native-voice/voice';
 
-import React from 'react';
-import type {PropsWithChildren} from 'react';
-import {
-  ScrollView,
-  StatusBar,
-  StyleSheet,
-  Text,
-  useColorScheme,
-  View,
-} from 'react-native';
+const LiveSpeechToText: React.FC = () => {
+  const [isRecording, setIsRecording] = useState(false);
+  const [recognizedText, setRecognizedText] = useState('');
+  const [error, setError] = useState<string | null>(null);
 
-import {
-  Colors,
-  DebugInstructions,
-  Header,
-  LearnMoreLinks,
-  ReloadInstructions,
-} from 'react-native/Libraries/NewAppScreen';
+  useEffect(() => {
+    Voice.onSpeechStart = onSpeechStart;
+    Voice.onSpeechRecognized = onSpeechRecognized;
+    Voice.onSpeechResults = onSpeechResults;
+    Voice.onSpeechError = onSpeechError;
 
-type SectionProps = PropsWithChildren<{
-  title: string;
-}>;
+    return () => {
+      Voice.destroy().then(Voice.removeAllListeners);
+    };
+  }, []);
 
-function Section({children, title}: SectionProps): React.JSX.Element {
-  const isDarkMode = useColorScheme() === 'dark';
-  return (
-    <View style={styles.sectionContainer}>
-      <Text
-        style={[
-          styles.sectionTitle,
-          {
-            color: isDarkMode ? Colors.white : Colors.black,
-          },
-        ]}>
-        {title}
-      </Text>
-      <Text
-        style={[
-          styles.sectionDescription,
-          {
-            color: isDarkMode ? Colors.light : Colors.dark,
-          },
-        ]}>
-        {children}
-      </Text>
-    </View>
-  );
-}
-
-function App(): React.JSX.Element {
-  const isDarkMode = useColorScheme() === 'dark';
-
-  const backgroundStyle = {
-    backgroundColor: isDarkMode ? Colors.darker : Colors.lighter,
+  const onSpeechStart = () => {
+    setIsRecording(true);
+    setRecognizedText('');
+    setError(null);
+    console.log('Speech started.');
   };
 
-  /*
-   * To keep the template simple and small we're adding padding to prevent view
-   * from rendering under the System UI.
-   * For bigger apps the recommendation is to use `react-native-safe-area-context`:
-   * https://github.com/AppAndFlow/react-native-safe-area-context
-   *
-   * You can read more about it here:
-   * https://github.com/react-native-community/discussions-and-proposals/discussions/827
-   */
-  const safePadding = '5%';
+  const onSpeechRecognized = (e: SpeechRecognizedEvent) => {
+    console.log('Speech recognized:', e);
+  };
+
+  const onSpeechResults = (e: SpeechResultsEvent) => {
+    if (e.value && e.value.length > 0) {
+      setRecognizedText(prevText => `${prevText} ${(e.value ?? []).join(' ')}`.trim());
+    }
+  };
+
+  const onSpeechError = (e: SpeechErrorEvent) => {
+    setIsRecording(false);
+    setError(e.error?.message || '음성 인식 중 오류가 발생했습니다.');
+    console.log('Speech error:', e.error);
+  };
+
+  const startRecording = async () => {
+    console.log('Voice object:', Voice); // Voice 객체 로깅
+    try {
+      await Voice.start('ko-KR');
+      console.log('Recording started.');
+    } catch (e: any) {
+      console.error('Error starting recording:', e);
+      setError(e.message || '음성 인식 시작에 실패했습니다.');
+    }
+  };
+
+  const stopRecording = async () => {
+    try {
+      await Voice.stop();
+      setIsRecording(false);
+      console.log('Speech stopped.');
+    } catch (e: any) {
+      setError(e.message || '음성 인식 중단에 실패했습니다.');
+    }
+  };
 
   return (
-    <View style={backgroundStyle}>
-      <StatusBar
-        barStyle={isDarkMode ? 'light-content' : 'dark-content'}
-        backgroundColor={backgroundStyle.backgroundColor}
-      />
-      <ScrollView
-        style={backgroundStyle}>
-        <View style={{paddingRight: safePadding}}>
-          <Header/>
-        </View>
-        <View
-          style={{
-            backgroundColor: isDarkMode ? Colors.black : Colors.white,
-            paddingHorizontal: safePadding,
-            paddingBottom: safePadding,
-          }}>
-          <Section title="Step One">
-            Edit <Text style={styles.highlight}>App.tsx</Text> to change this
-            screen and then come back to see your edits.
-          </Section>
-          <Section title="See Your Changes">
-            <ReloadInstructions />
-          </Section>
-          <Section title="Debug">
-            <DebugInstructions />
-          </Section>
-          <Section title="Learn More">
-            Read the docs to discover what to do next:
-          </Section>
-          <LearnMoreLinks />
-        </View>
-      </ScrollView>
+    <View style={styles.container}>
+      <Text style={styles.title}>실시간 음성 인식</Text>
+      <View style={styles.textContainer}>
+        <Text style={styles.recognizedText}>{recognizedText || '말씀하세요...'}</Text>
+      </View>
+      {error && <Text style={styles.errorText}>오류: {error}</Text>}
+      <TouchableOpacity
+        onPress={isRecording ? stopRecording : startRecording}
+        style={[styles.button, isRecording ? styles.stopButton : styles.startButton]}
+      >
+        <Text style={styles.buttonText}>{isRecording ? '중단' : '녹음 시작'}</Text>
+      </TouchableOpacity>
     </View>
   );
-}
+};
 
 const styles = StyleSheet.create({
-  sectionContainer: {
-    marginTop: 32,
-    paddingHorizontal: 24,
+  container: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
   },
-  sectionTitle: {
+  title: {
     fontSize: 24,
-    fontWeight: '600',
+    fontWeight: 'bold',
+    marginBottom: 20,
   },
-  sectionDescription: {
-    marginTop: 8,
+  textContainer: {
+    width: '100%',
+    minHeight: 100,
+    borderColor: 'gray',
+    borderWidth: 1,
+    borderRadius: 5,
+    padding: 10,
+    marginBottom: 20,
+    justifyContent: 'flex-start',
+    alignItems: 'flex-start',
+  },
+  recognizedText: {
+    fontSize: 16,
+  },
+  errorText: {
+    color: 'red',
+    marginBottom: 10,
+  },
+  button: {
+    borderRadius: 5,
+    paddingVertical: 15,
+    paddingHorizontal: 30,
+    marginBottom: 10,
+  },
+  startButton: {
+    backgroundColor: 'green',
+  },
+  stopButton: {
+    backgroundColor: 'red',
+  },
+  buttonText: {
+    color: 'white',
     fontSize: 18,
-    fontWeight: '400',
-  },
-  highlight: {
-    fontWeight: '700',
+    fontWeight: 'bold',
   },
 });
 
-export default App;
+export default LiveSpeechToText;
