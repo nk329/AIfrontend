@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Linking, AppState, Platform } from 'react-native';
 import Voice, {
   SpeechRecognizedEvent,
   SpeechResultsEvent,
@@ -17,8 +17,28 @@ const LiveSpeechToText: React.FC = () => {
     Voice.onSpeechResults = onSpeechResults;
     Voice.onSpeechError = onSpeechError;
 
+    // 앱이 위젯에서 실행된 경우 자동 녹음 시작
+    const checkIntent = async () => {
+      if (Platform.OS === 'android') {
+        const initialIntent = await Linking.getInitialURL();
+        if (initialIntent && initialIntent.includes('fromWidget')) {
+          startRecording();
+        }
+      }
+    };
+    checkIntent();
+
+    // 앱이 백그라운드에서 포그라운드로 올 때도 인텐트 체크
+    const handleAppStateChange = (nextAppState: string) => {
+      if (nextAppState === 'active') {
+        checkIntent();
+      }
+    };
+    AppState.addEventListener('change', handleAppStateChange);
+
     return () => {
       Voice.destroy().then(Voice.removeAllListeners);
+      AppState.removeEventListener('change', handleAppStateChange);
     };
   }, []);
 
