@@ -12,7 +12,9 @@
   "dependencies": {
     "@react-native-voice/voice": "^3.2.4",
     "react": "19.0.0",
-    "react-native": "0.79.2"
+    "react-native": "0.79.2",
+    "react-native-calendars": "^1.1312.1",
+    "react-native-vector-icons": "^10.2.0"
   },
   "devDependencies": {
     "@babel/core": "^7.25.2",
